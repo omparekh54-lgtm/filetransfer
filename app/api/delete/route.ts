@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { tokenMatches } from "@/lib/security";
 import { del } from "@vercel/blob";
-import { listTransferFiles, readManifest } from "@/lib/storage";
+import { blobToken, listTransferFiles, readManifest } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,6 +27,6 @@ export async function POST(request: Request) {
     ...found.manifest.files.map((file) => file.blobUrl),
     found.manifestUrl,
   ]);
-  await del([...urls]);
+  await del([...urls], { token: blobToken() });
   return NextResponse.json({ deleted: true });
 }

@@ -44,6 +44,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json(response);
   } catch (error) {
+    console.error("[upload-token] Failed to authorize upload", error);
     const message = error instanceof Error ? error.message : "Upload authorization failed.";
     return NextResponse.json({ error: message }, { status: 400 });
   }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { MAX_FILE_BYTES, MAX_FILES, MAX_TRANSFER_BYTES } from "@/lib/constants";
 import { tokenMatches } from "@/lib/security";
-import { listTransferFiles, readManifest, writeManifest } from "@/lib/storage";
+import { headTransferFile, readManifest, writeManifest } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,16 +42,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "The uploaded files do not match this transfer." }, { status: 400 });
   }
 
-  const blobs = await listTransferFiles(found.manifest.id);
-  const byPath = new Map(blobs.map((blob) => [blob.pathname, blob]));
-  const files = parsed.data.files.map((file) => {
+  const files = await Promise.all(parsed.data.files.map(async (file) => {
     if (!file.pathname.startsWith(`files/${found.manifest.id}/`)) {
       throw new Error("Invalid file path.");
     }
-    const blob = byPath.get(file.pathname);
-    if (!blob || blob.size !== file.size) throw new Error("An uploaded file is missing or incomplete.");
+    const blob = await headTransferFile(file.pathname);
+    if (blob.size !== file.size) throw new Error("An uploaded file is missing or incomplete.");
     return { ...file, blobUrl: blob.url };
-  });
+  }));
 
   found.manifest.files = files;
   found.manifest.status = "ready";

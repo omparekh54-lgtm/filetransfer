@@ -1,4 +1,4 @@
-import { del, get, list, put } from "@vercel/blob";
+import { del, get, head, list, put } from "@vercel/blob";
 import type { TransferManifest } from "@/lib/types";
 
 const manifestPath = (code: string) => `transfers/${code}.json`;
@@ -12,17 +12,23 @@ export function storageConfigured() {
 }
 
 export async function findManifestBlob(code: string) {
-  const result = await list({ prefix: manifestPath(code), limit: 2, token: blobToken() });
-  return result.blobs.find((blob) => blob.pathname === manifestPath(code)) ?? null;
+  const result = await get(manifestPath(code), {
+    access: "private",
+    useCache: false,
+    token: blobToken(),
+  });
+  return result?.statusCode === 200 ? result.blob : null;
 }
 
 export async function readManifest(code: string) {
-  const blob = await findManifestBlob(code);
-  if (!blob) return null;
-  const result = await get(blob.url, { access: "private", useCache: false, token: blobToken() });
-  if (!result) return null;
+  const result = await get(manifestPath(code), {
+    access: "private",
+    useCache: false,
+    token: blobToken(),
+  });
+  if (!result || result.statusCode !== 200) return null;
   const manifest = (await new Response(result.stream).json()) as TransferManifest;
-  return { manifest, manifestUrl: blob.url };
+  return { manifest, manifestUrl: result.blob.url };
 }
 
 export async function writeManifest(manifest: TransferManifest) {
@@ -45,6 +51,10 @@ export async function deleteTransferBlobs(manifest: TransferManifest, manifestUr
 export async function listTransferFiles(id: string) {
   const result = await list({ prefix: `files/${id}/`, limit: 1000, token: blobToken() });
   return result.blobs;
+}
+
+export async function headTransferFile(pathname: string) {
+  return head(pathname, { token: blobToken() });
 }
 
 export async function cleanupExpiredTransfers(limit = 20) {
