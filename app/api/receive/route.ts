@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { clientAddress } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
-import { readManifest } from "@/lib/storage";
+import { blobToken, deleteTransferBlobs, readManifest } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Transfer not found or unavailable." }, { status: 404 });
   }
   if (Date.parse(found.manifest.expiresAt) <= Date.now()) {
+    await deleteTransferBlobs(found.manifest, found.manifestUrl).catch(() => undefined);
     return NextResponse.json({ error: "This transfer has expired." }, { status: 410 });
   }
 
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
       pathname: file.pathname,
       operations: ["get"],
       validUntil,
+      token: blobToken(),
     });
     const { presignedUrl } = await presignUrl(token, {
       operation: "get",

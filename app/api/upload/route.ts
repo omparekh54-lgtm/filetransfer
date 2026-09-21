@@ -1,7 +1,7 @@
 import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
 import { NextResponse } from "next/server";
 import { MAX_FILE_BYTES } from "@/lib/constants";
-import { readManifest } from "@/lib/storage";
+import { blobToken, readManifest } from "@/lib/storage";
 import { tokenMatches } from "@/lib/security";
 
 export const runtime = "nodejs";
@@ -14,6 +14,7 @@ export async function POST(request: Request) {
 
   try {
     const response = await handleUpload({
+      token: blobToken(),
       request,
       body,
       onBeforeGenerateToken: async (pathname, clientPayload) => {

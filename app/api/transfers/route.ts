@@ -10,7 +10,7 @@ import {
 } from "@/lib/constants";
 import { clientAddress, createOwnerToken, createSixDigitCode, hashToken } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
-import { findManifestBlob, storageConfigured, writeManifest } from "@/lib/storage";
+import { cleanupExpiredTransfers, findManifestBlob, storageConfigured, writeManifest } from "@/lib/storage";
 import type { TransferManifest } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -30,6 +30,9 @@ export async function POST(request: Request) {
   if (!storageConfigured()) {
     return NextResponse.json({ error: "Storage is not connected yet." }, { status: 503 });
   }
+
+  // Opportunistically remove expired transfers without exposing a public cleanup endpoint.
+  void cleanupExpiredTransfers().catch(() => undefined);
 
   const ip = clientAddress(request);
   const limited = rateLimit(`create:${ip}`, 12, 60 * 60 * 1000);
